@@ -44,3 +44,13 @@ target_link_libraries(
         hello_triangle
         glfw
 )
+
+add_executable(shaders 03_shaders/shaders.cpp
+        ${include_dir}/glad/src/glad.c
+        ${include_dir}/shader_m.h
+        )
+
+target_link_libraries(
+        shaders
+        glfw
+)

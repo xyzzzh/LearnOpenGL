@@ -109,3 +109,72 @@ glBindVertexArray(VAO);
 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 glBindVertexArray(0);
 ```
+
+## 03_shaders
+着色器(Shader)是运行在**GPU**上的小程序。
+这些小程序为图形渲染管线的某个特定部分而运行。
+从基本意义上来说，着色器只是一种把**输入转化为输出**的程序。
+着色器也是一种非常独立的程序，因为它们之间不能相互通信；
+它们之间**唯一的沟通只有通过输入和输出**。
+
+### 3.1 GLSL
+一个典型的着色器有下面的结构：
+```c++
+#version version_number
+in type in_variable_name;
+in type in_variable_name;
+
+out type out_variable_name;
+
+uniform type uniform_name;
+
+int main()
+{
+// 处理输入并进行一些图形操作
+...
+// 输出处理过的结果到输出变量
+out_variable_name = weird_stuff_we_processed;
+}
+```
+关于顶点着色器，
+每个输入变量也叫顶点属性(Vertex Attribute)。
+我们能声明的顶点属性是有上限的，它一般由硬件来决定（至少16个包含4分量）。
+
+### 3.2 数据类型
+
+#### 向量
+
+| 类型    | 含义                    |
+|-------|-----------------------|
+| vecn  | 包含n个float分量的默认向量      |
+| bvecn | 包含n个bool分量的向量         |
+| ivecn | 包含n个int分量的向量          |
+| uvecn | 包含n个unsigned int分量的向量 |
+| dvecn | 包含n个double分量的向量       |
+
+重组
+```c++
+vec2 someVec;
+vec4 differentVec = someVec.xyxx;
+vec3 anotherVec = differentVec.zyw;
+vec4 otherVec = someVec.xxxx + anotherVec.yxzy;
+```
+#### 输入与输出
+**in** & **out**
+在发送方着色器中声明一个输出，在接收方着色器中声明一个类似的输入。当类型和名字都一样的时候，OpenGL就会把两个变量链接到一起，它们之间就能发送数据了（这是在链接程序对象时完成的）。
+
+特例：
+
+顶点着色器：layout (location = 0)
+片段着色器：它需要一个vec4颜色输出变量，因为片段着色器需要生成一个最终输出的颜色。
+
+#### Uniform
+
+Uniform是一种**从CPU中的应用向GPU**中的着色器发送数据的方式，
+但uniform和顶点属性有些不同。
+
+首先，uniform是**全局的(Global)**。
+全局意味着uniform变量必须在每个着色器程序对象中都是独一无二的，
+而且它可以被着色器程序的任意着色器在任意阶段访问。
+第二，无论你把uniform值设置成什么， 
+uniform会**一直保存**它们的数据，直到它们被重置或更新。
