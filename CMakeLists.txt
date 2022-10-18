@@ -17,8 +17,8 @@ add_executable(LearnOpenGL
         /Users/xyz/include/shader_m.h
         /Users/xyz/include/camera.h
         )
-add_executable(
-        hello_window 01_hello_window/window.cpp
+
+add_executable(hello_window 01_hello_window/window.cpp
         /Users/xyz/include/glad/src/glad.c
         /Users/xyz/include/stb_image.h
         /Users/xyz/include/shader_m.h
@@ -29,6 +29,7 @@ target_link_libraries(
         LearnOpenGL
         glfw
 )
+
 target_link_libraries(
         hello_window
         glfw
