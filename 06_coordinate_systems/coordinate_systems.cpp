@@ -65,7 +65,7 @@ int main() {
 
     // build and compile our shader zprogram
     // ------------------------------------
-    Shader ourShader("../shaders/05_v.glsl", "../shaders/05_f.glsl");
+    Shader ourShader("../shaders/06_v.glsl", "../shaders/06_f.glsl");
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
@@ -174,14 +174,25 @@ int main() {
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, texture1);
 
-        glm::mat4 trans(1.0);
-        trans = glm::translate(trans, glm::vec3(0.5f, -0.5f, 0.0f));
-        trans = glm::rotate(trans, (float)(f*M_PI), glm::vec3(0.0f, 0.0f, 1.0f));
-
         // render container
         ourShader.use();
-        unsigned int transformLoc = glGetUniformLocation(ourShader.ID, "transform");
-        glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(trans));
+
+        // create transformations
+        glm::mat4 model         = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
+        glm::mat4 view          = glm::mat4(1.0f);
+        glm::mat4 projection    = glm::mat4(1.0f);
+        model = glm::rotate(model, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+        view  = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0+2*f));
+        projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        // retrieve the matrix uniform locations
+        unsigned int modelLoc = glGetUniformLocation(ourShader.ID, "model");
+        unsigned int viewLoc  = glGetUniformLocation(ourShader.ID, "view");
+        // pass them to the shaders (3 different ways)
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, &view[0][0]);
+        // note: currently we set the projection matrix each frame, but since the projection matrix rarely changes it's often best practice to set it outside the main loop only once.
+        ourShader.setMat4("projection", projection);
+
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
@@ -223,10 +234,10 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
 void set_UI(){
     // 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
 
-    ImGui::Begin("Hello, world!"); // Create a window called "Hello, world!" and append into it.
+    ImGui::Begin("Editor"); // Create a window called "Hello, world!" and append into it.
 
     // ImGui::Text("This is some useful text."); // Display some text (you can use a format strings too)
-    ImGui::SliderFloat("rotate angle", &f, 0.0f, 1.0f);        // Edit 1 float using a slider from 0.0f to 1.0f
+    ImGui::SliderFloat("z", &f, 0.0f, 1.0f);        // Edit 1 float using a slider from 0.0f to 1.0f
     ImGui::ColorEdit3("color", (float *) &color); // Edit 3 floats representing a color
     if (ImGui::Button("Button"))                        // Buttons return true when clicked (most widgets return true when edited/activated)
         counter++;

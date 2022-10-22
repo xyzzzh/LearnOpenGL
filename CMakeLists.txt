@@ -35,53 +35,65 @@ target_link_libraries(
         assimp::assimp
 )
 
-add_executable(hello_window 01_hello_window/window.cpp
+add_executable(01_hello_window 01_hello_window/window.cpp
         ${include_dir}/glad/src/glad.c
         )
 
 target_link_libraries(
-        hello_window
+        01_hello_window
         glfw
 )
 
-add_executable(hello_triangle 02_hello_triangle/hello_triangle.cpp
+add_executable(02_hello_triangle 02_hello_triangle/hello_triangle.cpp
         ${include_dir}/glad/src/glad.c
         )
 
 target_link_libraries(
-        hello_triangle
+        02_hello_triangle
         glfw
 )
 
-add_executable(shaders 03_shaders/shaders.cpp
-        ${include_dir}/glad/src/glad.c
-        ${include_dir}/shader_m.h
-        )
-
-target_link_libraries(
-        shaders
-        glfw
-)
-
-add_executable(textures 04_textures/textures.cpp
+add_executable(03_shaders 03_shaders/shaders.cpp
         ${include_dir}/glad/src/glad.c
         ${include_dir}/shader_m.h
-        ${include_dir}/stb_image.h
         )
 
 target_link_libraries(
-        textures
+        03_shaders
         glfw
 )
 
-add_executable(transformations 05_Transformations/transformations.cpp
+add_executable(04_textures 04_textures/textures.cpp
         ${include_dir}/glad/src/glad.c
         ${include_dir}/shader_m.h
         ${include_dir}/stb_image.h
         )
 
 target_link_libraries(
-        transformations
+        04_textures
+        glfw
+)
+
+add_executable(05_transformations 05_Transformations/transformations.cpp
+        ${include_dir}/glad/src/glad.c
+        ${include_dir}/shader_m.h
+        ${include_dir}/stb_image.h
+        )
+
+target_link_libraries(
+        05_transformations
+        glfw
+        imgui
+)
+
+add_executable(06_coordinate_systems 06_coordinate_systems/coordinate_systems.cpp
+        ${include_dir}/glad/src/glad.c
+        ${include_dir}/shader_m.h
+        ${include_dir}/stb_image.h
+        )
+
+target_link_libraries(
+        06_coordinate_systems
         glfw
         imgui
 )
