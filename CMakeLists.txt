@@ -11,6 +11,14 @@ include_directories(${include_dir}/glm/)
 include_directories(/usr/local/Cellar/glfw/3.3.7/include)
 
 find_package(assimp REQUIRED) # 添加assimp
+add_library(imgui STATIC
+        ${include_dir}/imgui/imgui.cpp
+        ${include_dir}/imgui/imgui_impl_glfw.cpp
+        ${include_dir}/imgui/imgui_impl_opengl3.cpp
+        ${include_dir}/imgui/imgui_draw.cpp
+        ${include_dir}/imgui/imgui_demo.cpp
+        ${include_dir}/imgui/imgui_tables.cpp
+        ${include_dir}/imgui/imgui_widgets.cpp)
 
 add_executable(LearnOpenGL main.cpp
         ${include_dir}/glad/src/glad.c
@@ -75,4 +83,5 @@ add_executable(transformations 05_Transformations/transformations.cpp
 target_link_libraries(
         transformations
         glfw
+        imgui
 )

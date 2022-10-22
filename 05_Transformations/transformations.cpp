@@ -3,22 +3,29 @@
 //
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <iostream>
-#include <shader_m.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <iostream>
+#include <shader_m.h>
 #define STB_IMAGE_IMPLEMENTATION
+#include <imgui/imgui.h>
+#include <imgui/imgui_impl_glfw.h>
+#include <imgui/imgui_impl_opengl3.h>
 #include <stb_image.h>
 
 #define RESOURCES_ROOT_PATH "/Volumes/ZHITAI/resources"
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void processInput(GLFWwindow *window);
+void set_UI();
 
 // settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
+ImVec4 color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+static float f = 0.0f;
+static int counter = 0;
 int main() {
     // glfw: initialize and configure
     // ------------------------------
@@ -48,6 +55,12 @@ int main() {
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
+
+    // 初始化ImGui
+    ImGui::CreateContext();     // Setup Dear ImGui context
+    ImGui::StyleColorsDark();       // Setup Dear ImGui style
+    ImGui_ImplGlfw_InitForOpenGL(window, true);     // Setup Platform/Renderer backends
+    ImGui_ImplOpenGL3_Init("#version 330");
 
     // build and compile our shader zprogram
     // ------------------------------------
@@ -144,6 +157,16 @@ int main() {
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
+        /* Swap front and back buffers */
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+        set_UI();
+
+        // Rendering
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
         // bind Texture
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture0);
@@ -152,7 +175,7 @@ int main() {
 
         glm::mat4 trans(1.0);
         trans = glm::translate(trans, glm::vec3(0.5f, -0.5f, 0.0f));
-        trans = glm::rotate(trans, (float)glfwGetTime(), glm::vec3(0.0f, 0.0f, 1.0f));
+        trans = glm::rotate(trans, (float)(f*M_PI), glm::vec3(0.0f, 0.0f, 1.0f));
 
         // render container
         ourShader.use();
@@ -175,7 +198,11 @@ int main() {
 
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------
+    glfwDestroyWindow(window);
     glfwTerminate();
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
     return 0;
 }
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
@@ -185,11 +212,26 @@ void processInput(GLFWwindow *window) {
         glfwSetWindowShouldClose(window, true);
     }
 }
-
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
 // ---------------------------------------------------------------------------------------------
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
     // make sure the viewport matches the new window dimensions; note that width and
     // height will be significantly larger than specified on retina displays.
     glViewport(0, 0, width, height);
+}
+void set_UI(){
+    // 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
+
+    ImGui::Begin("Hello, world!"); // Create a window called "Hello, world!" and append into it.
+
+    // ImGui::Text("This is some useful text."); // Display some text (you can use a format strings too)
+    ImGui::SliderFloat("rotate angle", &f, 0.0f, 1.0f);        // Edit 1 float using a slider from 0.0f to 1.0f
+    ImGui::ColorEdit3("color", (float *) &color); // Edit 3 floats representing a color
+    if (ImGui::Button("Button"))                        // Buttons return true when clicked (most widgets return true when edited/activated)
+        counter++;
+    ImGui::SameLine();
+    ImGui::Text("counter = %d", counter);
+
+    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+    ImGui::End();
 }
