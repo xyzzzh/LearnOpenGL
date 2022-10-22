@@ -68,7 +68,7 @@ int main() {
     // note that this is allowed, the call to glVertexAttribPointer registered VBO as the vertex attribute's bound vertex buffer object so afterwards we can safely unbind
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    Shader ourShader("../03_shaders/v.glsl", "../03_shaders/f.glsl");
+    Shader ourShader("../shaders/03_v.glsl", "../shaders/03_f.glsl");
 
     // render loop
     // -----------

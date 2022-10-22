@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 project(LearnOpenGL)
 
 set(CMAKE_CXX_STANDARD 14)
-set(include_dir /Users/xyz/include)
+set(include_dir /Volumes/ZHITAI/include)
 link_directories(/usr/local/Cellar/glfw/3.3.7/lib)
 
 include_directories(${include_dir})
@@ -52,5 +52,27 @@ add_executable(shaders 03_shaders/shaders.cpp
 
 target_link_libraries(
         shaders
+        glfw
+)
+
+add_executable(textures 04_textures/textures.cpp
+        ${include_dir}/glad/src/glad.c
+        ${include_dir}/shader_m.h
+        ${include_dir}/stb_image.h
+        )
+
+target_link_libraries(
+        textures
+        glfw
+)
+
+add_executable(transformations 05_Transformations/transformations.cpp
+        ${include_dir}/glad/src/glad.c
+        ${include_dir}/shader_m.h
+        ${include_dir}/stb_image.h
+        )
+
+target_link_libraries(
+        transformations
         glfw
 )

@@ -3,6 +3,7 @@
 
 # IntelliJ project files
 .idea
+.clang-format
 *.iml
 out
 gen
