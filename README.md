@@ -366,7 +366,7 @@ while(...)
 ```
 
 
-## 变换
+## 05_变换
 通过Uniform向顶点着色器vshader传递trans矩阵。并在render loop中定义trans矩阵，实现实时变换位置的效果。
 
 ```c++
@@ -390,4 +390,6 @@ unsigned int transformLoc = glGetUniformLocation(ourShader.ID, "transform");
 glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(trans));
 ```
 
-## 
+## 06_坐标系统
+## 07_摄像机类
+camera.h

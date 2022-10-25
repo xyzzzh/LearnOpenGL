@@ -97,3 +97,16 @@ target_link_libraries(
         glfw
         imgui
 )
+
+    add_executable(07_camera 07_camera/camera.cpp
+        ${include_dir}/glad/src/glad.c
+        ${include_dir}/shader_m.h
+        ${include_dir}/stb_image.h
+        ${include_dir}/camera.h
+        )
+
+target_link_libraries(
+        07_camera
+        glfw
+        imgui
+)
