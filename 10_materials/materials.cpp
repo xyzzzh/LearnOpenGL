@@ -25,6 +25,26 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 // settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
+
+enum MATERIAL
+{
+    EMERALD,
+    PEARL,
+    BRONZE,
+    GOLD,
+    GREEN_RUBBER,
+    RED_PLASTIC
+};
+struct MaterialStruct
+{
+    ImVec4 ambient;
+    ImVec4 diffuse;
+    ImVec4 specular;
+    float shininess;
+};
+MaterialStruct materialArray[6];
+static int item_current = 0;
+
 ImVec4 objectColor = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 ImVec4 lightColor = ImVec4(1.0f, 1.0f, 1.0f, 1.00f);
 static float f = 0.0f;
@@ -92,6 +112,35 @@ int main()
     ImGui::StyleColorsDark();       // Setup Dear ImGui style
     ImGui_ImplGlfw_InitForOpenGL(window, true);     // Setup Platform/Renderer backends
     ImGui_ImplOpenGL3_Init("#version 330");
+    materialArray[EMERALD].ambient = ImVec4(0.0215, 0.1745, 0.0215, 1.0);
+    materialArray[EMERALD].diffuse = ImVec4(0.07568, 0.61424, 0.07568, 1.0);
+    materialArray[EMERALD].specular = ImVec4(0.633, 0.727811, 0.633, 1.0);
+    materialArray[EMERALD].shininess = 76.8;
+
+    materialArray[PEARL].ambient = ImVec4(0.25, 0.20725, 0.20725, 1.0);
+    materialArray[PEARL].diffuse = ImVec4(1, 0.829, 0.829, 1.0);
+    materialArray[PEARL].specular = ImVec4(0.296648, 0.296648, 0.296648, 1.0);
+    materialArray[PEARL].shininess = 11.26;
+
+    materialArray[BRONZE].ambient = ImVec4(0.2125, 0.1275, 0.054, 1.0);
+    materialArray[BRONZE].diffuse = ImVec4(0.714, 0.4284, 0.18144, 1.0);
+    materialArray[BRONZE].specular = ImVec4(0.393548, 0.271906, 0.166721, 1.0);
+    materialArray[BRONZE].shininess = 25.6;
+
+    materialArray[GOLD].ambient = ImVec4(0.24725, 0.1995, 0.0745, 1.0);
+    materialArray[GOLD].diffuse = ImVec4(0.75164, 0.60648, 0.22648, 1.0);
+    materialArray[GOLD].specular = ImVec4(0.628281, 0.555802, 0.366065, 1.0);
+    materialArray[GOLD].shininess = 51.2;
+
+    materialArray[GREEN_RUBBER].ambient = ImVec4(0.0, 0.05, 0, 1.0);
+    materialArray[GREEN_RUBBER].diffuse = ImVec4(0.4, 0.5, 0.4, 1.0);
+    materialArray[GREEN_RUBBER].specular = ImVec4(0.04, 0.7, 0.04, 1.0);
+    materialArray[GREEN_RUBBER].shininess = 10;
+
+    materialArray[RED_PLASTIC].ambient = ImVec4(0.0, 0.0, 0.0, 1.0);
+    materialArray[RED_PLASTIC].diffuse = ImVec4(0.5, 0.0, 0.0, 1.0);
+    materialArray[RED_PLASTIC].specular = ImVec4(0.7, 0.6, 0.6, 1.0);
+    materialArray[RED_PLASTIC].shininess = 32;
 
     // configure global opengl state
     // -----------------------------
@@ -330,10 +379,26 @@ void set_UI(){
     ImGui::ColorEdit3("diffuse", (float *) &material_diffuse);
     ImGui::ColorEdit3("specular", (float *) &material_specular);
     ImGui::SliderFloat("material_shininess", &material_shininess, 0.0f, 100.0f);
+    {
+        const char *items[] = {
+                "Emerald",
+                "Pearl",
+                "Bronze",
+                "Gold",
+                "Green rubber",
+                "Red Plastic",
+        };
+        if(ImGui::Combo("Material", &item_current, items, IM_ARRAYSIZE(items))){
+            material_ambient = materialArray[item_current].ambient;
+            material_diffuse = materialArray[item_current].diffuse;
+            material_specular = materialArray[item_current].specular;
+            material_shininess = materialArray[item_current].shininess;
+        }
+    }
 
     ImGui::Text("Light properties:");
     ImGui::SliderFloat("ambientStrength", &ambientStrength, 0.0f, 1.0f);
-    ImGui::SliderFloat("ambientStrength", &diffuseStrength, 0.0f, 1.0f);
+    ImGui::SliderFloat("diffuseStrength", &diffuseStrength, 0.0f, 1.0f);
     ImGui::SliderFloat("specularStrength", &specularStrength, 0.0f, 1.0f);
 
     ImGui::ColorEdit3("lightColor", (float *) &lightColor); // Edit 3 floats representing a color
