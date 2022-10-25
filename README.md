@@ -393,3 +393,141 @@ glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(trans));
 ## 06_坐标系统
 ## 07_摄像机类
 camera.h
+
+## 08_颜色
+
+## 09_基础光照
+冯氏光照模型(Phong Lighting Model)
+冯氏光照模型的主要结构由3个分量组成：环境(Ambient)、漫反射(Diffuse)和镜面(Specular)光照。
+![](https://learnopengl-cn.github.io/img/02/02/basic_lighting_phong.png)
+- 环境光照(Ambient Lighting)：即使在黑暗的情况下，世界上通常也仍然有一些光亮（月亮、远处的光），所以物体几乎永远不会是完全黑暗的。为了模拟这个，我们会使用一个环境光照常量，它永远会给物体一些颜色。
+- 漫反射光照(Diffuse Lighting)：模拟光源对物体的方向性影响(Directional Impact)。它是冯氏光照模型中视觉上最显著的分量。物体的某一部分越是正对着光源，它就会越亮。
+- 镜面光照(Specular Lighting)：模拟有光泽物体上面出现的亮点。镜面光照的颜色相比于物体的颜色会更倾向于光的颜色。
+
+### 1. 环境光照ambient
+使用一个很小的常量（光照）颜色，添加到物体片段的最终颜色中，
+这样子的话即便场景中没有直接的光源也能看起来存在有一些发散的光。
+
+把环境光照添加到场景里非常简单。
+我们用光的颜色乘以一个很小的常量环境因子，再乘以物体的颜色，然后将最终结果作为片段的颜色：
+```glsl
+void main(){
+    float ambientStrength = 0.1;
+    vec3 ambient = ambientStrength * lightColor;
+
+    vec3 result = ambient * objectColor;
+    FragColor = vec4(result, 1.0);
+}
+```
+### 2. 漫反射diffuse
+漫反射光照使物体上与光线方向越接近的片段,能从光源处获得更多的亮度。
+
+![](https://learnopengl-cn.github.io/img/02/02/diffuse_light.png)
+两个单位向量的夹角越小，它们点乘的结果越倾向于1。
+当两个向量的夹角为90度的时候，点乘会变为0。
+这同样适用于θ，θ越大，光对片段颜色的影响就应该越小。
+
+所以，计算漫反射光照需要:
+- 法向量：一个垂直于顶点表面的向量。 
+- 定向的光线：作为光源的位置与片段的位置之间向量差的方向向量。为了计算这个光线，我们需要光的位置向量和片段的位置向量。
+
+```glsl
+void main(){
+    vec3 ambient = ambientStrength * lightColor;
+
+    vec3 norm = normalize(Normal);
+    vec3 lightDir = normalize(lightPos - FragPos);
+    float diff = max(dot(norm, lightDir), 0.0);
+    vec3 diffuse = diff * lightColor;
+
+    vec3 result = (ambient + diffuse) * objectColor;
+    FragColor = vec4(result, 1.0);
+}
+```
+### 3. 高光specular
+和漫反射光照一样，镜面光照也决定于光的方向向量和物体的法向量，
+但是它也决定于观察方向，例如玩家是从什么方向看向这个片段的。
+镜面光照决定于表面的反射特性。
+如果我们把物体表面设想为一面镜子，那么镜面光照最强的地方就是我们看到表面上反射光的地方。
+![](https://learnopengl-cn.github.io/img/02/02/basic_lighting_specular_theory.png)
+我们先计算视线方向与反射方向的点乘（并确保它不是负值），然后取它的32次幂。
+这个32是高光的反光度(Shininess)。
+一个物体的反光度越高，反射光的能力越强，散射得越少，高光点就会越小。
+在下面的图片里，你会看到不同反光度的视觉效果影响：
+![](https://learnopengl-cn.github.io/img/02/02/basic_lighting_specular_shininess.png)
+```glsl
+void main(){
+    vec3 ambient = ambientStrength * lightColor;
+
+    vec3 norm = normalize(Normal);
+    vec3 lightDir = normalize(lightPos - FragPos);
+    float diff = max(dot(norm, lightDir), 0.0);
+    vec3 diffuse = diff * lightColor;
+
+    vec3 viewDir = normalize(viewPos - FragPos);
+    vec3 reflectDir = reflect(-lightDir, norm);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
+    vec3 specular = specularStrength * spec * lightColor;
+
+    vec3 result = (ambient + diffuse + specular) * objectColor;
+    FragColor = vec4(result, 1.0);
+}
+```
+
+### 4. Gouraud着色
+在光照着色器的早期，开发者曾经在顶点着色器中实现冯氏光照模型。
+在顶点着色器中做光照的优势是，相比片段来说，顶点要少得多，因此会更高效，
+所以（开销大的）光照计算频率会更低。
+然而，顶点着色器中的最终颜色值是仅仅只是那个顶点的颜色值，
+片段的颜色值是由插值光照颜色所得来的。
+结果就是这种光照看起来不会非常真实，除非使用了大量顶点。
+![](https://learnopengl-cn.github.io/img/02/02/basic_lighting_gouruad.png)
+在顶点着色器中实现的冯氏光照模型叫做Gouraud着色(Gouraud Shading)，
+而不是冯氏着色(Phong Shading)。
+记住，由于插值，这种光照看起来有点逊色。冯氏着色能产生更平滑的光照效果。
+
+## 10_材质
+
+### 1. 材质 Material
+在上一节中，我们定义了一个物体和光的颜色，并结合环境光与镜面强度分量，来决定物体的视觉输出。
+当描述一个表面时，我们可以分别为三个光照分量定义一个材质颜色(Material Color)：环境光照(Ambient Lighting)、漫反射光照(Diffuse Lighting)和镜面光照(Specular Lighting)。
+通过为每个分量指定一个颜色，我们就能够对表面的颜色输出有细粒度的控制了。
+现在，我们再添加一个反光度(Shininess)分量，结合上述的三个颜色，我们就有了全部所需的材质属性了：
+```glsl
+#version 330 core
+struct Material {
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+    float shininess;
+}; 
+
+uniform Material material;
+```
+如你所见，我们为冯氏光照模型的每个分量都定义一个颜色向量。
+ambient材质向量定义了在环境光照下这个表面反射的是什么颜色，通常与表面的颜色相同。
+diffuse材质向量定义了在漫反射光照下表面的颜色。漫反射颜色（和环境光照一样）也被设置为我们期望的物体颜色。
+specular材质向量设置的是表面上镜面高光的颜色（或者甚至可能反映一个特定表面的颜色）。
+最后，shininess影响镜面高光的散射/半径。
+
+### 2. 光的属性
+物体过亮的原因是环境光、漫反射和镜面光这三个颜色对任何一个光源都全力反射。
+光源对环境光、漫反射和镜面光分量也分别具有不同的强度。
+前面的章节中，我们通过使用一个强度值改变环境光和镜面光强度的方式解决了这个问题。
+我们想做类似的事情，但是这次是要为每个光照分量分别指定一个强度向量。
+```glsl
+struct Light {
+    vec3 position;
+
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+};
+
+uniform Light light;
+```
+一个光源对它的ambient、diffuse和specular光照分量有着不同的强度。
+环境光照通常被设置为一个比较低的强度，因为我们不希望环境光颜色太过主导。
+光源的漫反射分量通常被设置为我们希望光所具有的那个颜色，通常是一个比较明亮的白色。
+镜面光分量通常会保持为vec3(1.0)，以最大强度发光。
+注意我们也将光源的位置向量加入了结构体。

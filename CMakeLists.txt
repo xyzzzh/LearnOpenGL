@@ -98,7 +98,7 @@ target_link_libraries(
         imgui
 )
 
-    add_executable(07_camera 07_camera/camera.cpp
+add_executable(07_camera 07_camera/camera.cpp
         ${include_dir}/glad/src/glad.c
         ${include_dir}/shader_m.h
         ${include_dir}/stb_image.h
@@ -107,6 +107,45 @@ target_link_libraries(
 
 target_link_libraries(
         07_camera
+        glfw
+        imgui
+)
+
+add_executable(08_colors 08_colors/colors.cpp
+        ${include_dir}/glad/src/glad.c
+        ${include_dir}/shader_m.h
+        ${include_dir}/stb_image.h
+        ${include_dir}/camera.h
+        )
+
+target_link_libraries(
+        08_colors
+        glfw
+        imgui
+)
+
+add_executable(09_basic_lighting 09_basic_lighting/basic_lighting.cpp
+        ${include_dir}/glad/src/glad.c
+        ${include_dir}/shader_m.h
+        ${include_dir}/stb_image.h
+        ${include_dir}/camera.h
+        )
+
+target_link_libraries(
+        09_basic_lighting
+        glfw
+        imgui
+)
+
+add_executable(10_materials 10_materials/materials.cpp
+        ${include_dir}/glad/src/glad.c
+        ${include_dir}/shader_m.h
+        ${include_dir}/stb_image.h
+        ${include_dir}/camera.h
+        )
+
+target_link_libraries(
+        10_materials
         glfw
         imgui
 )
