@@ -163,3 +163,16 @@ target_link_libraries(
         glfw
         imgui
 )
+
+add_executable(12_light_casters 12_light_casters/light_casters.cpp
+        ${include_dir}/glad/src/glad.c
+        ${include_dir}/shader_m.h
+        ${include_dir}/stb_image.h
+        ${include_dir}/camera.h
+        )
+
+target_link_libraries(
+        12_light_casters
+        glfw
+        imgui
+)
