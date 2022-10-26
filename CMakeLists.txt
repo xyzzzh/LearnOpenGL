@@ -149,3 +149,17 @@ target_link_libraries(
         glfw
         imgui
 )
+
+
+add_executable(11_lighting_maps 11_lighting_maps/lighting_maps.cpp
+        ${include_dir}/glad/src/glad.c
+        ${include_dir}/shader_m.h
+        ${include_dir}/stb_image.h
+        ${include_dir}/camera.h
+        )
+
+target_link_libraries(
+        11_lighting_maps
+        glfw
+        imgui
+)

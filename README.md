@@ -539,4 +539,68 @@ uniform Light light;
 
 所以，上一节中的那个材质系统是肯定不够的，它只是一个最简单的模型，
 所以我们需要拓展之前的系统，引入漫反射和镜面光贴图(Map)。
-这允许我们对物体的漫反射分量（以及间接地对环境光分量，它们几乎总是一样的）和镜面光分量有着更精确的控制。
+这允许我们对物体的**漫反射**分量（以及间接地对环境光分量，它们几乎总是一样的）和**镜面光**分量有着更精确的控制。
+
+### 1. 漫反射贴图
+我们希望通过某种方式对物体的每个片段单独设置漫反射颜色。
+我们可以使用纹理来达到这一点，在光照场景中，它通常叫做一个漫反射贴图(Diffuse Map).
+在着色器中使用漫反射贴图的方法和纹理教程中是完全一样的。
+但这次我们会将纹理储存为Material结构体中的一个sampler2D。
+我们将之前定义的vec3漫反射颜色向量替换为漫反射贴图。
+我们也移除了环境光材质颜色向量，因为环境光颜色在几乎所有情况下都等于漫反射颜色，
+所以我们不需要将它们分开储存.
+```glsl
+#version 330 core
+out vec4 FragColor;
+
+struct Material {
+    sampler2D diffuse;
+    sampler2D specular;
+    float shininess;
+};
+
+struct Light {
+    vec3 position;
+
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+};
+
+in vec3 FragPos;
+in vec3 Normal;
+in vec2 TexCoords;
+
+uniform vec3 viewPos;
+uniform Material material;
+uniform Light light;
+
+void main()
+{
+    // ambient
+    vec3 ambient = light.ambient * texture(material.diffuse, TexCoords).rgb;
+
+    // diffuse
+    vec3 norm = normalize(Normal);
+    vec3 lightDir = normalize(light.position - FragPos);
+    float diff = max(dot(norm, lightDir), 0.0);
+    vec3 diffuse = light.diffuse * diff * texture(material.diffuse, TexCoords).rgb;
+
+    // specular
+    vec3 viewDir = normalize(viewPos - FragPos);
+    vec3 reflectDir = reflect(-lightDir, norm);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
+    vec3 specular = light.specular * spec * texture(material.specular, TexCoords).rgb;
+
+    vec3 result = ambient + diffuse + specular;
+    FragColor = vec4(result, 1.0);
+}
+```
+
+```c++
+// lighting_maps.cpp
+lightingShader.setInt("material.diffuse", 0);
+...
+glActiveTexture(GL_TEXTURE0);
+glBindTexture(GL_TEXTURE_2D, diffuseMap);
+```
