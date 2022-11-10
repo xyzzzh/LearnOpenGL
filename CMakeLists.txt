@@ -192,3 +192,35 @@ target_link_libraries(
         imgui
         assimp::assimp
 )
+
+add_executable(14_depth_testing 14_depth_testing/depth_testing.cpp
+        ${include_dir}/glad/src/glad.c
+        ${include_dir}/shader_m.h
+        ${include_dir}/stb_image.h
+        ${include_dir}/camera.h
+        ${include_dir}/mesh.h
+        ${include_dir}/model.h
+        )
+
+target_link_libraries(
+        14_depth_testing
+        glfw
+        imgui
+        assimp::assimp
+)
+
+add_executable(15_stencil_testing 15_stencil_testing/stencil_testing.cpp
+        ${include_dir}/glad/src/glad.c
+        ${include_dir}/shader_m.h
+        ${include_dir}/stb_image.h
+        ${include_dir}/camera.h
+        ${include_dir}/mesh.h
+        ${include_dir}/model.h
+        )
+
+target_link_libraries(
+        15_stencil_testing
+        glfw
+        imgui
+        assimp::assimp
+)
