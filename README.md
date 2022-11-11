@@ -756,6 +756,29 @@ glStencilOp(GLenum sfail, GLenum dpfail, GLenum dppass)一共包含三个选项�
 - 再次绘制物体，但只在它们片段的模板值不等于1时才绘制。
 - 再次启用模板写入和深度测试。
 
+```c++
+glEnable(GL_DEPTH_TEST);
+glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);  
+
+glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); 
+
+glStencilMask(0x00); // 记得保证我们在绘制地板的时候不会更新模板缓冲
+normalShader.use();
+DrawFloor()  
+
+glStencilFunc(GL_ALWAYS, 1, 0xFF); 
+glStencilMask(0xFF); 
+DrawTwoContainers();
+
+glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+glStencilMask(0x00); 
+glDisable(GL_DEPTH_TEST);
+shaderSingleColor.use(); 
+DrawTwoScaledUpContainers();
+glStencilMask(0xFF);
+glEnable(GL_DEPTH_TEST); 
+```
+
 总结：
 模板测试的目的：利用已经本次绘制的物体，产生一个区域，在下次绘制中利用这个区域做一些效果。
 
@@ -786,4 +809,47 @@ glStencilMask(0x00); // 每一位都不可以被修改，即禁用模板缓冲�
 3. 禁用模板缓冲写入；
 4. 修改模板测试条件：没有模板值得片段才通过测试，意味着这次绘制会丢弃掉之前绘制的物体区域（并不影响上次的绘制，只会影响接下来的绘制）
 
+## 16 Blending
 
+OpenGL中，混合(Blending)通常是实现物体透明度(Transparency)的一种技术。
+虽然直接丢弃片段很好，但它不能让我们渲染半透明的图像。
+我们要么渲染一个片段，要么完全丢弃它。
+要想渲染有多个透明度级别的图像，我们需要启用混合(Blending)。
+和OpenGL大多数的功能一样，我们可以启用GL_BLEND来启用混合：
+```c++
+glEnable(GL_BLEND);
+```
+OpenGL中的混合是通过下面这个方程来实现的：
+> C_res = C_source * F_source + C_destination * F_destination
+> - C_source ：源颜色向量。这是源自纹理的颜色向量。 
+> - F_source：源因子值。指定了alpha值对源颜色的影响。
+> - C_destination：目标颜色向量。这是当前储存在颜色缓冲中的颜色向量。
+> - F_destination：目标因子值。指定了alpha值对目标颜色的影响。
+
+如何让OpenGL使用这样的因子呢？正好有一个专门的函数，叫做glBlendFunc。
+glBlendFunc(GLenum sfactor, GLenum dfactor)函数接受两个参数，
+来设置源因子值F_source和目标因子值F_destination。
+
+OpenGL为我们定义了很多个选项，我们将在下面列出大部分最常用的选项。注意常数颜色向量C_constant可以通过glBlendColor函数来另外设置。
+
+| 选项                         |值|
+|-----------------------------|---|
+| GL_ZERO                     |因子等于0|
+| GL_ONE                      |因子等于1|
+| GL_SRC_COLOR                |因子等于源颜色向量C_source|
+| GL_ONE_MINUS_SRC_COLOR      |因子等于1−C_source|
+| GL_DST_COLOR                |因子等于目标颜色向量C_destination|
+| GL_ONE_MINUS_DST_COLOR      |因子等于1−C_destination|
+| GL_SRC_ALPHA                |因子等于C_source的alpha分量|
+| GL_ONE_MINUS_SRC_ALPHA      |因子等于1− C_source的alpha分量|
+| GL_DST_ALPHA                |因子等于C¯destination的alpha分量|
+| GL_ONE_MINUS_DST_ALPHA      |因子等于1− C_destination的alpha分量|
+| GL_CONSTANT_COLOR           |因子等于常数颜色向量C_constant|
+| GL_ONE_MINUS_CONSTANT_COLOR |因子等于1−C_constant|
+| GL_CONSTANT_ALPHA           |因子等于C_constant的alpha分量|
+| GL_ONE_MINUS_CONSTANT_ALPHA |因子等于1− C_constant的alpha分量|
+
+为了获得之前两个方形的混合结果，我们需要使用源颜色向量的alpha作为源因子，使用1−alpha作为目标因子。这将会产生以下的glBlendFunc：
+```c++
+glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+```
