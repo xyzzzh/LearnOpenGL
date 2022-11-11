@@ -240,3 +240,19 @@ target_link_libraries(
         imgui
         assimp::assimp
 )
+
+add_executable(17_face_culling 17_face_culling/face_culling.cpp
+        ${include_dir}/glad/src/glad.c
+        ${include_dir}/shader_m.h
+        ${include_dir}/stb_image.h
+        ${include_dir}/camera.h
+        ${include_dir}/mesh.h
+        ${include_dir}/model.h
+        )
+
+target_link_libraries(
+        17_face_culling
+        glfw
+        imgui
+        assimp::assimp
+)

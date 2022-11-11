@@ -853,3 +853,47 @@ OpenGL为我们定义了很多个选项，我们将在下面列出大部分最�
 ```c++
 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 ```
+
+## 17_face_culling
+
+![](https://learnopengl-cn.github.io/img/04/04/faceculling_windingorder.png)
+
+```c++
+float vertices[] = {
+    // 顺时针
+    vertices[0], // 顶点1
+    vertices[1], // 顶点2
+    vertices[2], // 顶点3
+    // 逆时针
+    vertices[0], // 顶点1
+    vertices[2], // 顶点3
+    vertices[1]  // 顶点2  
+};
+```
+默认情况下，逆时针顶点所定义的三角形将会被处理为正向三角形。
+
+要想启用面剔除，我们只需要启用OpenGL的GL_CULL_FACE选项：
+```c++
+glEnable(GL_CULL_FACE);
+```
+
+从这一句代码之后，所有背向面都将被丢弃（尝试飞进立方体内部，看看所有的内面是不是都被丢弃了）。
+目前我们在渲染片段的时候能够节省50%以上的性能，但注意这只对像立方体这样的封闭形状有效。
+当我们想要绘制上一节中的草时，我们必须要再次禁用面剔除，因为它们的正向面和背向面都应该是可见的。
+
+OpenGL允许我们改变需要剔除的面的类型。如果我们只想剔除正向面而不是背向面会怎么样？我们可以调用glCullFace来定义这一行为：
+```c++
+glCullFace(GL_FRONT);
+```
+
+glCullFace函数有三个可用的选项：
+- GL_BACK：只剔除背向面。
+- GL_FRONT：只剔除正向面。
+- GL_FRONT_AND_BACK：剔除正向面和背向面。
+
+glCullFace的初始值是GL_BACK。除了需要剔除的面之外，我们也可以通过调用glFrontFace，告诉OpenGL我们希望将顺时针的面（而不是逆时针的面）定义为正向面：
+```c++
+glFrontFace(GL_CCW);
+```
+默认值是GL_CCW，它代表的是逆时针的环绕顺序，另一个选项是GL_CW，它（显然）代表的是顺时针顺序。
+
