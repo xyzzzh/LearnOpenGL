@@ -256,3 +256,19 @@ target_link_libraries(
         imgui
         assimp::assimp
 )
+
+add_executable(18_framebuffers 18_framebuffers/framebuffer.cpp
+        ${include_dir}/glad/src/glad.c
+        ${include_dir}/shader_m.h
+        ${include_dir}/stb_image.h
+        ${include_dir}/camera.h
+        ${include_dir}/mesh.h
+        ${include_dir}/model.h
+        )
+
+target_link_libraries(
+        18_framebuffers
+        glfw
+        imgui
+        assimp::assimp
+)
