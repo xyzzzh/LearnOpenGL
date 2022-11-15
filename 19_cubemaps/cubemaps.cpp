@@ -43,7 +43,7 @@ bool Enable_FC = false;
 float scale = 1.1f;
 bool Line_Mode = false;
 int mode = 1;
-float refractRatio = 1.0;
+float refractRatio = 0.658;
 
 int main() {
     // glfw: initialize and configure
@@ -94,52 +94,10 @@ int main() {
     Shader shader("../shaders/19_1_v.glsl", "../shaders/19_1_f.glsl");
     Shader skyboxShader("../shaders/skybox_v.glsl", "../shaders/skybox_f.glsl");
 
+    // Model nanosuit(RESOURCES_ROOT_PATH "/nanosuit_reflection/nanosuit.obj");
+    Model mod(RESOURCES_ROOT_PATH "/dragon.obj");
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
-    float cubeVertices[] = {
-            // positions          // normals
-            -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-            0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-            0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-            0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-            -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-            -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-
-            -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-            0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-            0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-            0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-            -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-            -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-
-            -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-            -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-            -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-            -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-            -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-            -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-
-            0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-            0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-            0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-            0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-            0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-            0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-
-            -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-            0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-            0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-            0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-            -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-            -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-
-            -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-            0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-            0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-            0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-            -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-            -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
-    };
     float skyboxVertices[] = {
             // positions
             -1.0f,  1.0f, -1.0f,
@@ -184,18 +142,6 @@ int main() {
             -1.0f, -1.0f,  1.0f,
             1.0f, -1.0f,  1.0f
     };
-
-    // cube VAO
-    unsigned int cubeVAO, cubeVBO;
-    glGenVertexArrays(1, &cubeVAO);
-    glGenBuffers(1, &cubeVBO);
-    glBindVertexArray(cubeVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), &cubeVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *) 0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *) (3 * sizeof(float)));
 
     // skybox VAO, VBO
     unsigned int skyboxVAO, skyboxVBO;
@@ -262,10 +208,8 @@ int main() {
         shader.setInt("mode", mode);
         shader.setFloat("refractRatio", refractRatio);
         // cubes
-        glBindVertexArray(cubeVAO);
-        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        mod.Draw(shader);
         glBindVertexArray(0);
 
         // draw skybox as last
@@ -293,8 +237,6 @@ int main() {
 
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------
-    glDeleteVertexArrays(1, &cubeVAO);
-    glDeleteBuffers(1, &cubeVBO);
     glfwTerminate();
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -412,30 +354,10 @@ void UI() {
 
     // ImGui::Text("This is some useful text."); // Display some text (you can use a format strings too)
     ImGui::Text("Camera.Position:");
-    ImGui::SliderFloat("camera.Position.x", &camera.Position.x, -10.0f, 10.0f);
-    ImGui::SliderFloat("camera.Position.y", &camera.Position.y, -10.0f, 10.0f);
-    ImGui::SliderFloat("camera.Position.z", &camera.Position.z, -10.0f, 10.0f);
+    ImGui::SliderFloat("camera.Position.x", &camera.Position.x, -30.0f, 30.0f);
+    ImGui::SliderFloat("camera.Position.y", &camera.Position.y, -30.0f, 30.0f);
+    ImGui::SliderFloat("camera.Position.z", &camera.Position.z, -30.0f, 30.0f);
 
-    // // ImGui::ColorEdit3("lightColor", (float *) &lightColor); // Edit 3 floats representing a color
-    // if (ImGui::Button("GL_LESS/GL_ALWAYS")) {
-    //     if (DT_ALWAYS) {
-    //         glDepthFunc(GL_ALWAYS);
-    //     } else {
-    //         glDepthFunc(GL_LESS);
-    //     }
-    //     DT_ALWAYS = !DT_ALWAYS;
-    // }
-    // if (ImGui::Button("isVisual")) // Buttons return true when clicked (most widgets return true when edited/activated)
-    //     isVisual = !isVisual;
-    // ImGui::SliderFloat("scale", &scale, 1.0f, 2.0f);
-    // if (ImGui::Button("FACE_CULLING")) {
-    //     if (Enable_FC) {
-    //         glEnable(GL_CULL_FACE);
-    //     } else {
-    //         glDisable(GL_CULL_FACE);
-    //     }
-    //     Enable_FC = !Enable_FC;
-    // }
     if (ImGui::Button("Line_Mode")) {
         if (Line_Mode) {
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
