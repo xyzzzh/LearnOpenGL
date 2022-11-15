@@ -548,7 +548,7 @@ void UI() {
     }
     if (ImGui::Button("Mode")){
         mode++;
-        mode = mode % 4;
+        mode = mode % 6;
     }
 
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);

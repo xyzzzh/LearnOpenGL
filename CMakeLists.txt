@@ -272,3 +272,19 @@ target_link_libraries(
         imgui
         assimp::assimp
 )
+
+add_executable(19_cubemaps 19_cubemaps/cubemaps.cpp
+        ${include_dir}/glad/src/glad.c
+        ${include_dir}/shader_m.h
+        ${include_dir}/stb_image.h
+        ${include_dir}/camera.h
+        ${include_dir}/mesh.h
+        ${include_dir}/model.h
+        )
+
+target_link_libraries(
+        19_cubemaps
+        glfw
+        imgui
+        assimp::assimp
+)
