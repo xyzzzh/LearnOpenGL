@@ -76,7 +76,7 @@ int main()
     ImGui_ImplOpenGL3_Init("#version 330");
 
     // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
-    stbi_set_flip_vertically_on_load(true);
+    stbi_set_flip_vertically_on_load(false);
 
     // configure global opengl state
     // -----------------------------

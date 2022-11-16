@@ -1,5 +1,9 @@
 # LearnOpenGL
 
+#### TODO:
+- [ ] 次序无关透明度(Order Independent Transparency, OIT)
+- [ ] 动态环境贴图(Dynamic Environment Mapping)
+
 # note
 
 ## 01_hello_window

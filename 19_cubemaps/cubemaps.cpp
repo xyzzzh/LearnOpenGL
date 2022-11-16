@@ -45,7 +45,8 @@ bool Line_Mode = false;
 int mode = 1;
 float refractRatio = 0.658;
 
-int main() {
+int main()
+{
     // glfw: initialize and configure
     // ------------------------------
     glfwInit();
@@ -59,8 +60,9 @@ int main() {
 
     // glfw window creation
     // --------------------
-    GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
-    if (window == NULL) {
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
+    if (window == NULL)
+    {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
         return -1;
@@ -71,7 +73,8 @@ int main() {
 
     // glad: load all OpenGL function pointers
     // ---------------------------------------
-    if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+    {
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
@@ -83,7 +86,7 @@ int main() {
     ImGui_ImplOpenGL3_Init("#version 330");
 
     // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
-    // stbi_set_flip_vertically_on_load(true);
+    // stbi_set_flip_vertically_on_load(false);
 
     // configure global opengl state
     // -----------------------------
@@ -94,10 +97,11 @@ int main() {
     Shader shader("../shaders/19_1_v.glsl", "../shaders/19_1_f.glsl");
     Shader skyboxShader("../shaders/skybox_v.glsl", "../shaders/skybox_f.glsl");
 
-    // Model nanosuit(RESOURCES_ROOT_PATH "/nanosuit_reflection/nanosuit.obj");
-    Model mod(RESOURCES_ROOT_PATH "/dragon.obj");
-    // set up vertex data (and buffer(s)) and configure vertex attributes
-    // ------------------------------------------------------------------
+    // load models
+    // -----------
+    stbi_set_flip_vertically_on_load(false);
+    Model ourModel(RESOURCES_ROOT_PATH "/nanosuit/nanosuit.obj");
+
     float skyboxVertices[] = {
             // positions
             -1.0f,  1.0f, -1.0f,
@@ -167,15 +171,20 @@ int main() {
     unsigned int cubemapTexture = loadCubemap(faces);
     // shader configuration
     // --------------------
+
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+
     shader.use();
-    shader.setInt("skybox", 0);
+    shader.setInt("skybox", 1);
 
     skyboxShader.use();
-    skyboxShader.setInt("skybox", 0);
+    skyboxShader.setInt("skybox", 1);
 
     // render loop
     // -----------
-    while (!glfwWindowShouldClose(window)) {
+    while (!glfwWindowShouldClose(window))
+    {
         // per-frame time logic
         // --------------------
         float currentFrame = static_cast<float>(glfwGetTime());
@@ -189,28 +198,39 @@ int main() {
         // render
         // ------
         glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); // don't forget to clear the stencil buffer!
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
         UI();
 
-        // draw scene as normal
+        // don't forget to enable shader before setting uniforms
         shader.use();
-        glm::mat4 model = glm::mat4(1.0f);
-        glm::mat4 view = camera.GetViewMatrix();
+
+        // view/projection transformations
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-        shader.setMat4("model", model);
-        shader.setMat4("view", view);
+        glm::mat4 view = camera.GetViewMatrix();
         shader.setMat4("projection", projection);
+        shader.setMat4("view", view);
+
+        // render the loaded model
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
+        model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
+        shader.setMat4("model", model);
         shader.setVec3("cameraPos", camera.Position);
-        shader.setInt("mode", mode);
         shader.setFloat("refractRatio", refractRatio);
-        // cubes
-        glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-        mod.Draw(shader);
-        glBindVertexArray(0);
+        shader.setInt("mode", mode);
+        glActiveTexture(GL_TEXTURE0);
+        //glBindTexture(GL_TEXTURE_2D, cubeTexture);
+        // // cubes
+        // glBindVertexArray(cubeVAO);
+        // glActiveTexture(GL_TEXTURE0);
+        // glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+        // glDrawArrays(GL_TRIANGLES, 0, 36);
+        // glBindVertexArray(0);
+        ourModel.Draw(shader);
 
         // draw skybox as last
         glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when values are equal to depth buffer's content
@@ -220,7 +240,7 @@ int main() {
         skyboxShader.setMat4("projection", projection);
         // skybox cube
         glBindVertexArray(skyboxVAO);
-        glActiveTexture(GL_TEXTURE0);
+        glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
         glDrawArrays(GL_TRIANGLES, 0, 36);
         glBindVertexArray(0);
@@ -243,7 +263,6 @@ int main() {
     ImGui::DestroyContext();
     return 0;
 }
-
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
 void processInput(GLFWwindow *window) {
