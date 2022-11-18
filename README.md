@@ -3,6 +3,7 @@
 #### TODO:
 - [ ] 次序无关透明度(Order Independent Transparency, OIT)
 - [ ] 动态环境贴图(Dynamic Environment Mapping)
+- [ ] 在渲染方程中用蒙特卡洛估计(Monte Carlo Estimator)+重要性采样(importance sampling)代替黎曼和(Riemann sum)
 
 # note
 
@@ -900,4 +901,263 @@ glCullFace的初始值是GL_BACK。除了需要剔除的面之外，我们也可
 glFrontFace(GL_CCW);
 ```
 默认值是GL_CCW，它代表的是逆时针的环绕顺序，另一个选项是GL_CW，它（显然）代表的是顺时针顺序。
+
+## 20_PBR
+
+PBR: 基于物理的渲染(Physically Based Rendering)\
+判断一种PBR光照模型是否是基于物理的，必须满足以下三个条件:
+- 基于微平面(Microfacet)的表面模型。 
+- 能量守恒。
+- 应用基于物理的BRDF。
+
+### 20_1_Microfacet_Model
+
+Microfacet Model: 微平面模型
+
+所有的PBR技术都基于微平面理论。在微观尺度，所有平面都可以用被称为微平面(Microfacets)的细小镜面来进行描绘。\
+![](https://learnopengl-cn.github.io/img/07/01/microfacets.png)\
+产生的效果就是：一个平面越是粗糙，这个平面上的微平面的排列就越混乱。
+当我们特指镜面光/镜面反射时，入射光线更趋向于向完全不同的方向发散(Scatter)开来，进而产生出分布范围**更广泛**的镜面反射。\
+而与之相反的是，对于一个光滑的平面，光线大体上会更趋向于向同一个方向反射，造成**更小更锐利**的反射\
+![](https://learnopengl-cn.github.io/img/07/01/microfacets_light_rays.png)
+
+由于这些微平面已经微小到无法逐像素的继续对其进行区分，因此我们只有假设一个粗糙度(Roughness)参数，然后用**统计学**的方法来概略的估算微平面的粗糙程度。\
+我们可以基于一个平面的粗糙度来计算出某个向量的方向与微平面平均取向方向一致的概率。其中，这个向量是位于光线向量l和视线向量v之间的**中间向量**。
+
+![](https://learnopengl-cn.github.io/img/07/01/ndf.png)\
+可以看到，较高的粗糙度值显示出来的镜面反射的**轮廓要更大**一些。\
+与之相反地，较小的粗糙值显示出的镜面反射轮廓则**更小更锐利**。
+
+### 20_2_Energy Conservation
+
+Energy Conservation: 能量守恒
+
+微平面近似法的能量守恒假设为：出射光线的能量永远不能超过入射光线的能量（发光面除外）。\
+如图示我们可以看到，随着粗糙度的上升镜面反射区域的会增加，但是镜面反射的亮度却会下降。
+
+为了遵守能量守恒定律，我们需要对漫反射光和镜面反射光之间做出明确的区分。\
+当一束光线碰撞到一个表面的时候，它就会分离成一个**折射**部分和一个**反射**部分:
+- 反射部分就是会直接反射开来而不会进入平面的那部分光线，这就是我们所说的镜面光照。
+- 折射部分就是余下的会进入表面并被吸收的那部分光线，这也就是我们所说的漫反射光照。
+
+一般来说，并非所有能量都会被全部吸收，而光线也会继续沿着（基本上）随机的方向发散，然后再和其他的粒子碰撞直至能量完全耗尽或者再次离开这个表面。\
+而光线脱离物体表面后将会协同构成该表面的（漫反射）颜色。不过在基于物理的渲染之中我们进行了简化，假设对平面上的每一点所有的折射光都会**被完全吸收**而不会散开。\
+而有一些被称为次表面散射(Subsurface Scattering)技术的着色器技术将这个问题考虑了进去，它们显著的提升了一些诸如皮肤，大理石或者蜡质这样材质的视觉效果，不过伴随而来的则是性能下降代价。
+
+对于**金属(Metallic)**表面，当讨论到反射与折射的时候还有一个细节需要注意。\
+。金属表面对光的反应与非金属材料（也被称为介电质(Dielectrics)材料）表面相比是不同的。\
+它们遵从的反射与折射原理是相同的，但是**所有的折射光都会被直接吸收**而不会散开，**只留下反射光或者说镜面反射光**。亦即是说，金属表面**不会显示出漫反射**颜色。\
+由于金属与电介质之间存在这样明显的区别，因此它们两者在PBR渲染管线中被区别处理。
+
+反射光与折射光之间的这个区别使我们得到了另一条关于能量守恒的经验结论：反射光与折射光它们二者之间是互斥的关系。无论何种光线，其被材质表面所反射的能量将无法再被材质吸收。因此，诸如折射光这样的余下的进入表面之中的能量正好就是我们计算完反射之后余下的能量。\
+无论何种光线，其被材质表面所反射的能量将无法再被材质吸收。因此，诸如折射光这样的余下的进入表面之中的能量正好就是我们计算完反射之后余下的能量。\
+我们按照能量守恒的关系，首先计算镜面反射部分，它的值等于入射光线被反射的能量所占的百分比。然后折射光部分就可以直接由镜面反射部分计算得出：
+```c++
+float kS = calculateSpecularComponent(...); // 反射/镜面 部分
+float kD = 1.0 - ks;                        // 折射/漫反射 部分
+```
+这样我们就能在遵守能量守恒定律的前提下知道入射光线的反射部分与折射部分所占的总量了。按照这种方法折射/漫反射与反射/镜面反射所占的份额都不会超过1.0，如此就能保证它们的能量总和永远不会超过入射光线的能量。
+
+### 20_3_Render_Equation
+
+结合[GAMES101](https://www.bilibili.com/video/BV1X7411F744?p=14&vd_source=0b8f31eb69f670f5ef1d10a123f0569d)中所讲述的，几个基本概念如下：
+
+#### 1. Radiant Energy and Flux
+
+Radiant Energy: 能量Q(单位: J=Joule)
+Radiant Flux(Power): 通量，表示单位时间的能量\
+![](https://latex.codecogs.com/svg.image?\Phi&space;=&space;\frac{\mathrm{d}&space;Q}{\mathrm{d}&space;t})\
+单位: ![](https://latex.codecogs.com/svg.image?[\mathrm{W}=\mathrm{watt}],&space;[\mathrm{lm}=\mathrm{lumen}])
+
+#### 2. Radiant Intensity
+
+Radiant Intensity: power per unit solid angle emitted by a point light source
+![](https://latex.codecogs.com/svg.image?\mathrm{I}(\omega&space;&space;)=&space;\frac{\mathrm{d}&space;\Phi&space;}{\mathrm{d}&space;\omega&space;})\
+单位: ![](https://latex.codecogs.com/svg.image?[\frac{\mathrm{W}}{\mathrm{sr}}],&space;[\frac{\mathrm{lm}}{\mathrm{sr}}=\mathrm{cd}&space;=&space;\mathrm{candel}])
+
+
+Solid Angle: 
+- Angles: 总和为2π, ![](https://latex.codecogs.com/svg.image?\Theta&space;=&space;\frac{l}{r}&space;)
+- Solod Angle: 总和为4π, ![](https://latex.codecogs.com/svg.image?\Omega&space;=&space;\frac{A}{r^2}&space;)\
+其中A为球面上受照面面积。
+- Differential Solid Angle: ![](https://latex.codecogs.com/svg.image?\mathrm{d}&space;A&space;=&space;r^2\mathrm{sin}\theta&space;\mathrm{d}\theta&space;\mathrm{d}\Phi&space;)\
+  \theta和\Phi为夹角
+
+#### 3. Irradiance
+
+Irradiance: power per unit area
+
+![](https://latex.codecogs.com/svg.image?\mathrm{E}(x)=\frac{\mathrm{d}&space;\mathrm{\Phi&space;}(x)}{\mathrm{d}&space;A}&space;)\
+单位:![](https://latex.codecogs.com/svg.image?[\frac{\mathrm{W}}{m^2}],[\frac{\mathrm{lm}}{m^2}=\mathrm{lux}])
+
+Lambert cosine law:
+![](https://latex.codecogs.com/svg.image?\mathrm{E}=\frac{\Phi&space;}{A}\cdot&space;\mathrm{cos}\theta;&space;\mathrm{cos}\theta&space;=&space;l\cdot&space;n)\
+由![](https://latex.codecogs.com/svg.image?\mathrm{E}=\frac{\Phi&space;}{A})可知irradiance衰减：\
+传播距离越远，r越大，A越大，\Phi不变，因此irrandiance随距离衰减。
+
+#### 4. Radiance
+
+Radiance: power per unit solid angle, per projected unit area
+
+![](https://latex.codecogs.com/svg.image?\mathrm{L}(p,&space;\omega&space;)=\frac{\mathrm{d^2}&space;\Phi&space;}{\mathrm{d}&space;\omega&space;\cdot&space;\mathrm{d}\mathrm{Acos}\theta&space;})\
+单位:![](https://latex.codecogs.com/svg.image?[\frac{\mathrm{W}}{\mathrm{sr}\&space;\mathrm{m^2}}],[\frac{\mathrm{cd}}{\mathrm{m^2}}=\frac{\mathrm{lm}}{\mathrm{sr}\&space;\mathrm{m^2}}=\mathrm{nit}])
+
+Radiance = Irradiance per solid angle = Intensity per projected area
+
+#### 5. Reflection Equation
+
+![](https://latex.codecogs.com/svg.image?\mathrm{L_o}(p,\omega&space;_o)=&space;\int_{\Omega&space;}\mathrm{f_r}(p,&space;\omega&space;_i,&space;\omega&space;_o)\mathrm{L_i}(p,\omega&space;_i)\mathrm{n}\cdot&space;\omega&space;_i&space;\mathrm{d}\omega&space;_i)
+
+我们知道在渲染方程中**L**代表通过某个无限小的立体角**ωi**在某个点上的辐射率, 而立体角可以视作是入射方向向量**ωi**。\
+注意我们利用光线和平面间的入射角的余弦值**cosθ**来计算能量，亦即从辐射率公式L转化至反射率公式时的**n⋅ωi**。\
+用**ωo**表示观察方向，也就是出射方向，反射率公式计算了点p在ωo方向上被反射出来的辐射率**Lo(p,ωo)**的总和。\
+或者换句话说：**Lo表示了从ωo方向上观察，光线投射到点p上反射出来的辐照度**。
+
+基于反射率公式是围绕所有入射辐射率的总和，也就是Irradiance来计算的，\
+所以我们需要计算的就不只是是单一的一个方向上的入射光，而是一个以点p为球心的半球领域Ω内所有方向上的入射光。\
+一个半球领域(Hemisphere)可以描述为以平面法线n为轴所环绕的半个球体：\
+![](https://learnopengl-cn.github.io/img/07/01/hemisphere.png)\
+为了计算半球领域Ω内所有入射方向上的dωi，需要运用积分，具体来说，用离散的方法来求得这个积分的数值解。\
+这个问题就转化为，在半球领域Ω中按一定的步长将反射率方程分散求解，然后再按照步长大小将所得到的结果平均化。这种方法被称为黎曼和(Riemann sum)，其伪代码如下：
+```c++
+int steps = 100;
+float sum = 0.0f;
+vec3 P    = ...;
+vec3 Wo   = ...;
+vec3 N    = ...;
+float dW  = 1.0f / steps;
+for(int i = 0; i < steps; ++i) 
+{
+    vec3 Wi = getNextIncomingLightDir(i);
+    sum += Fr(p, Wi, Wo) * L(p, Wi) * dot(N, Wi) * dW;
+}
+```
+
+总而言之，反射率方程概括了在半球领域Ω内，碰撞到了点p上的所有入射方向ωi 上的光线的辐射率，并受到fr的约束，然后返回观察方向上反射光的Lo。\
+现在唯一剩下的未知符号就是fr了，它被称为BRDF，或者双向反射分布函数(Bidirectional Reflective Distribution Function) ，它的作用是基于表面材质属性来对入射辐射率进行缩放或者加权。
+
+#### 6. BRDF
+
+BRDF，或者说双向反射分布函数，它接受入射（光）方向**ωi**，出射（观察）方向**ωo**，平面法线**n**以及一个用来表示**微平面粗糙程度**的参数a作为函数的输入参数。
+BRDF可以近似的求出**每束光线对一个给定了材质属性的平面上最终反射出来的光线所作出的贡献程度**。
+> 举例来说，如果一个平面拥有完全光滑的表面（比如镜面），那么对于所有的入射光线ωi（除了一束以外）而言BRDF函数都会返回0.0 ，只有一束与出射光线ωo拥有相同（被反射）角度的光线会得到1.0这个返回值。
+
+对于一个BRDF，为了实现物理学上的可信度，它必须遵守能量守恒定律，也就是说反射光线的总和永远不能超过入射光线的总量。\
+严格上来说，同样采用ωi和ωo作为输入参数的 Blinn-Phong光照模型也被认为是一个BRDF。然而由于Blinn-Phong模型并没有遵循能量守恒定律，因此它不被认为是基于物理的渲染。\
+现在已经有很好几种BRDF都能近似的得出物体表面对于光的反应，但是几乎所有实时渲染管线使用的都是一种被称为**Cook-Torrance BRDF模型**。
+
+Cook-Torrance BRDF兼有漫反射和镜面反射两个部分：\
+BRDF = 漫反射+镜面反射
+
+![](https://latex.codecogs.com/svg.image?\mathrm{f_r&space;=&space;k_df_{lambert}&space;&plus;&space;k_sf_{cook-torrance}})
+
+- k_d是早先提到过的入射光线中被折射部分的能量所占的比率
+- ks是被反射部分的比率。
+
+BRDF的左侧表示的是漫反射部分，这里用f_lambert来表示。它被称为Lambertian漫反射，这和我们之前在漫反射着色中使用的常数因子类似，用如下的公式来表示：
+
+![](https://latex.codecogs.com/svg.image?\mathrm{f_{lambert}}=\frac{c}{\pi&space;})\
+- c表示表面颜色（回想一下漫反射表面纹理）。
+- 除以π是为了对漫反射光进行标准化，因为前面含有BRDF的积分方程是受π影响的。
+
+BRDF的镜面反射部分要稍微更高级一些，它的形式如下所示：
+
+![](https://latex.codecogs.com/svg.image?f_{\mathrm{cook-Torrance}}&space;=&space;\frac{\mathrm{DFG}}{4(\omega&space;_o\cdot&space;n)(\omega&space;_i&space;\cdot&space;n)})
+
+Cook-Torrance BRDF的镜面反射部分包含三个函数，此外分母部分还有一个标准化因子。\
+字母D，F与G分别代表着一种类型的函数，各个函数分别用来近似的计算出表面反射特性的一个特定部分。\
+三个函数分别为法线分布函数(Normal Distribution Function)，菲涅尔方程(Fresnel Rquation)和几何函数(Geometry Function):
+- D法线分布函数：估算在受到表面粗糙度的影响下，取向方向与中间向量一致的微平面的数量。这是用来估算微平面的主要函数。
+- F菲涅尔方程：菲涅尔方程描述的是在不同的表面角下表面所反射的光线所占的比率。
+- G几何函数：描述了微平面自成阴影的属性。当一个平面相对比较粗糙的时候，平面表面上的微平面有可能挡住其他的微平面从而减少表面所反射的光线。
+
+我们将会采用Epic Games在Unreal Engine 4中所使用的函数，其中D使用Trowbridge-Reitz GGX，F使用Fresnel-Schlick近似(Fresnel-Schlick Approximation)，而G使用Smith’s Schlick-GGX。
+
+##### 6.1 法线分布函数
+
+法线分布函数D，或者说镜面分布，从统计学上近似的表示了与某些（中间）向量h取向一致的微平面的比率。\
+举例来说，假设给定向量h，如果我们的微平面中有35%与向量h取向一致，则法线分布函数或者说NDF将会返回0.35。\
+目前有很多种NDF都可以从统计学上来估算微平面的总体取向度，只要给定一些粗糙度的参数以及一个我们马上将会要用到的参数Trowbridge-Reitz GGX：\
+![](https://latex.codecogs.com/svg.image?\mathrm{NDF_{GGXTR}(n,h,\alpha)}=\frac{\alpha^2}{\pi((n\cdot&space;h)^2(\alpha^2-1)&plus;1)^2})
+
+在这里h表示用来与平面上微平面做比较用的中间向量，而a表示表面粗糙度。
+```glsl
+float D_GGX_TR(vec3 N, vec3 H, float a){
+    float a2     = a*a;
+    float NdotH  = max(dot(N, H), 0.0);
+    float NdotH2 = NdotH*NdotH;
+
+    float nom    = a2;
+    float denom  = (NdotH2 * (a2 - 1.0) + 1.0);
+    denom        = PI * denom * denom;
+
+    return nom / denom;
+}
+```
+
+##### 6.2 几何函数
+
+几何函数从统计学上近似的求得了微平面间相互遮蔽的比率，这种相互遮蔽会损耗光线的能量。与NDF类似，几何函数采用一个材料的粗糙度参数作为输入参数，粗糙度较高的表面其微平面间相互遮蔽的概率就越高。\
+我们将要使用的几何函数是GGX与Schlick-Beckmann近似的结合体，因此又称为Schlick-GGX：\
+![](https://latex.codecogs.com/svg.image?\mathrm{G_{SchlickGGX}}(n,&space;v,&space;k)&space;=&space;\frac{n&space;\cdot&space;v}{(n\cdot&space;v)(1-k)&plus;k})
+
+这里的k是α基于几何函数是针对直接光照还是针对IBL光照的重映射(Remapping):\
+![](https://latex.codecogs.com/svg.image?\mathrm{k_{direct}}&space;=&space;\frac{(\alpha&plus;1)^2}{8};&space;\mathrm{k_{IBL}=\frac{\alpha^2}{2}})
+
+
+为了有效的估算几何部分，需要将观察方向（几何遮蔽(Geometry Obstruction)）和光线方向向量（几何阴影(Geometry Shadowing)）都考虑进去。我们可以使用史密斯法(Smith’s method)来把两者都纳入其中:\
+![](https://latex.codecogs.com/svg.image?\mathrm{G}(n,v,l,k)&space;=&space;\mathrm{G_{sub}}(n,v,k)&plus;\mathrm{G_{sub}}(n,l,k))
+
+几何函数是一个值域为[0.0, 1.0]的乘数，其中白色或者说1.0表示没有微平面阴影，而黑色或者说0.0则表示微平面彻底被遮蔽。
+```glsl
+float GeometrySchlickGGX(float NdotV, float k)
+{
+    float nom   = NdotV;
+    float denom = NdotV * (1.0 - k) + k;
+
+    return nom / denom;
+}
+
+float GeometrySmith(vec3 N, vec3 V, vec3 L, float k)
+{
+    float NdotV = max(dot(N, V), 0.0);
+    float NdotL = max(dot(N, L), 0.0);
+    float ggx1 = GeometrySchlickGGX(NdotV, k);
+    float ggx2 = GeometrySchlickGGX(NdotL, k);
+
+    return ggx1 * ggx2;
+}
+```
+
+
+##### 6.3 菲涅尔方程
+
+菲涅尔方程描述的是**被反射的光线对比光线被折射的部分所占的比率**，这个比率会随着我们**观察的角度**不同而不同。\
+当光线碰撞到一个表面的时候，菲涅尔方程会根据观察角度告诉我们被反射的光线所占的百分比。\
+利用这个反射比率和能量守恒原则，我们可以直接得出光线被折射的部分以及光线剩余的能量。
+
+当垂直观察的时候，任何物体或者材质表面都有一个基础反射率(Base Reflectivity)，但是如果以一定的角度往平面上看的时候所有反光都会变得明显起来。
+
+```glsl
+vec3 F0 = vec3(0.04);
+F0      = mix(F0, surfaceColor.rgb, metalness);
+float cosTheta = dot(n ,v);
+vec3 fresnelSchlick(float cosTheta, vec3 F0){
+    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+}
+```
+
+###  20_4_编写PBR材质
+
+PBR渲染管线所需要的每一个表面参数都可以用纹理来定义或者建模。使用纹理可以让我们逐个片段的来控制每个表面上特定的点对于光线是如何响应的：不论那个点是金属的，粗糙或者平滑，也不论表面对于不同波长的光会有如何的反应。
+
+在下面你可以看到在一个PBR渲染管线当中经常会碰到的纹理列表，还有将它们输入PBR渲染器所能得到的相应的视觉输出：\
+![](https://learnopengl-cn.github.io/img/07/01/textures.png)
+- 反照率(Albedo)：反照率(Albedo)纹理为每一个金属的纹素(Texel)（纹理像素）指定表面颜色或者基础反射率。这和我们之前使用过的漫反射纹理相当类似，不同的是所有光照信息都是由一个纹理中提取的。漫反射纹理的图像当中常常包含一些细小的阴影或者深色的裂纹，而反照率纹理中是不会有这些东西的。它应该只包含表面的颜色（或者折射吸收系数）。
+- 法线(Normal)：法线贴图纹理和我们之前在法线贴图教程中所使用的贴图是完全一样的。法线贴图使我们可以逐片段的指定独特的法线，来为表面制造出起伏不平的假象。
+- 金属度(Metallic)：金属(Metallic)贴图逐个纹素的指定该纹素是不是金属质地的。根据PBR引擎设置的不同，美术师们既可以将金属度编写为灰度值又可以编写为1或0这样的二元值。
+- 粗糙度(Roughness): 粗糙度(Roughness)贴图可以以纹素为单位指定某个表面有多粗糙。采样得来的粗糙度数值会影响一个表面的微平面统计学上的取向度。一个比较粗糙的表面会得到更宽阔更模糊的镜面反射（高光），而一个比较光滑的表面则会得到集中而清晰的镜面反射。某些PBR引擎预设采用的是对某些美术师来说更加直观的光滑度(Smoothness)贴图而非粗糙度贴图，不过这些数值在采样之时就马上用（1.0 – 光滑度）转换成了粗糙度。
+- 环境光遮蔽(Ambient Occlusion): 环境光遮蔽(Ambient Occlusion)贴图或者说AO贴图为表面和周围潜在的几何图形指定了一个额外的阴影因子。比如如果我们有一个砖块表面，反照率纹理上的砖块裂缝部分应该没有任何阴影信息。然而AO贴图则会把那些光线较难逃逸出来的暗色边缘指定出来。在光照的结尾阶段引入环境遮蔽可以明显的提升你场景的视觉效果。网格/表面的环境遮蔽贴图要么通过手动生成，要么由3D建模软件自动生成。
+
+
 
