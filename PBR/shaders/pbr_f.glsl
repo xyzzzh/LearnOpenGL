@@ -24,6 +24,8 @@ uniform float ao;
 uniform vec3 lightPositions[4];
 uniform vec3 lightColors[4];
 
+uniform samplerCube irradianceMap;
+
 uniform vec3 camPos;
 
 const float PI = 3.14159265359;
@@ -32,24 +34,25 @@ const float PI = 3.14159265359;
 // Don't worry if you don't get what's going on; you generally want to do normal
 // mapping the usual way for performance anways; I do plan make a note of this
 // technique somewhere later in the normal mapping tutorial.
-vec3 getNormalMap(){
-    vec3 tangentNormal = texture(normalMap, TexCoords).xyz * 2.0 - 1.0f;
-
-    vec3 Q1 = dFdx(WorldPos);
-    vec3 Q2 = dFdy(WorldPos);
-    vec2 st1 = dFdx(TexCoords);
-    vec2 st2 = dFdy(TexCoords);
-
-    vec3 N = normalize(Normal);
-    vec3 T = normalize(Q1*st2.t - Q2*st1.t);
-    vec3 B = -normalize(cross(N, T));
-    mat3 TBN = mat3(T, B, N);
-
-    return normalize(TBN * tangentNormal);
-}
+//vec3 getNormalMap(){
+//    vec3 tangentNormal = texture(normalMap, TexCoords).xyz * 2.0 - 1.0f;
+//
+//    vec3 Q1 = dFdx(WorldPos);
+//    vec3 Q2 = dFdy(WorldPos);
+//    vec2 st1 = dFdx(TexCoords);
+//    vec2 st2 = dFdy(TexCoords);
+//
+//    vec3 N = normalize(Normal);
+//    vec3 T = normalize(Q1*st2.t - Q2*st1.t);
+//    vec3 B = -normalize(cross(N, T));
+//    mat3 TBN = mat3(T, B, N);
+//
+//    return normalize(TBN * tangentNormal);
+//}
 
 // ----------------------------------------------------------------------------
 float DistributionGGX(vec3 N, vec3 H, float a){
+    a =a*a;
     float a2     = a*a;
     float NdotH  = max(dot(N, H), 0.0f);
     float NdotH2 = NdotH*NdotH;
@@ -79,6 +82,10 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float k){
 // ----------------------------------------------------------------------------
 vec3 fresnelSchlick(float cosTheta, vec3 F0){
     return F0 + (1.0-F0)*pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0f);
+}
+// ----------------------------------------------------------------------------
+vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness){
+    return F0 + (max(vec3(1.0f-roughness), F0) - F0) * pow(1.0f - cosTheta, 5.0f);
 }
 // ----------------------------------------------------------------------------
 void main(){
@@ -113,7 +120,7 @@ void main(){
         vec3 F = fresnelSchlick(clamp(dot(H, V), 0.0, 1.0), F0);
 
         vec3 numerator = NDF * G * F;
-        float denominator = 4.0 * max(dot(V, N), 0.0f) * max(dot(L, N), 0.0f) +0.0001f;// + 0.0001 to prevent divide by zero
+        float denominator = 4.0 * max(dot(V, N), 0.0f) * max(dot(N, L), 0.0f) +0.0001f;// + 0.0001 to prevent divide by zero
         vec3 specular = numerator / denominator;
 
         // kS is equal to Fresnel
@@ -133,9 +140,14 @@ void main(){
         // add to outgoing radiance Lo
         Lo += (kD * albedo / PI + specular) * radiance * NdotL;
     }
-    // ambient lighting (note that the next IBL tutorial will replace
-    // this ambient lighting with environment lighting).
-    vec3 ambient = vec3(0.03) * albedo * ao;
+    // ambient lighting (we now use IBL as the ambient term)
+    vec3 kS = fresnelSchlickRoughness(max(dot(N, V), 0.0f), F0, roughness);
+    vec3 kD = 1.0f - kS;
+    kD *= 1.0f - metallic;
+    vec3 irradiance = texture(irradianceMap, N).rgb;
+    vec3 diffuse = irradiance * albedo;
+    vec3 ambient = (kD * diffuse) * ao;
+
     vec3 color = ambient + Lo;
 
     // HDR tonemapping
