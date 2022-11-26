@@ -22,9 +22,10 @@ void processInput(GLFWwindow *window);
 unsigned int loadTexture(const char *path);
 unsigned int loadHDR(char const *path);
 unsigned int loadCubemap(vector<std::string> faces);
-void UI();
+void panel();
 void renderSphere();
 void renderCube();
+void renderQuad();
 
 // settings
 const unsigned int SCR_WIDTH = 800;
@@ -39,6 +40,10 @@ bool firstMouse = true;
 // timing
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
+
+// materials
+ImVec4 albedo = ImVec4(0.5f, 0.0f, 0.0f, 1.0f);
+float ao = 1.0f;
 
 int main() {
     // glfw: initialize and configure
@@ -81,48 +86,7 @@ int main() {
     // -----------------------------
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL); // set depth function to less than AND equal for skybox depth trick.
-
-    // lights
-    // ------
-    glm::vec3 lightPositions[] = {
-            glm::vec3(-10.0f, 10.0f, 10.0f),
-            glm::vec3(10.0f, 10.0f, 10.0f),
-            glm::vec3(-10.0f, -10.0f, 10.0f),
-            glm::vec3(10.0f, -10.0f, 10.0f),
-    };
-    glm::vec3 lightColors[] = {
-            glm::vec3(300.0f, 300.0f, 300.0f),
-            glm::vec3(300.0f, 300.0f, 300.0f),
-            glm::vec3(300.0f, 300.0f, 300.0f),
-            glm::vec3(300.0f, 300.0f, 300.0f)};
-    int nrRows = 7;
-    int nrColumns = 7;
-    float spacing = 2.5;
-
-    // build and compile shaders
-    // -------------------------
-    Shader pbrShader("../PBR/shaders/pbr_v.glsl", "../PBR/shaders/pbr_f.glsl");
-    Shader enquirectangularToCubemapShader("../PBR/shaders/cubemap_v.glsl", "../PBR/shaders/enquirectangular_to_cubemap_f.glsl");
-    Shader backgroundShader("../PBR/shaders/skybox_v.glsl", "../PBR/shaders/skybox_f.glsl");
-    Shader irradianceShader("../PBR/shaders/cubemap_v.glsl", "../PBR/shaders/irradiance_f.glsl");
-
-    pbrShader.use();
-    pbrShader.setVec3("albedo", 0.5f, 0.0f, 0.0f);
-    pbrShader.setFloat("ao", 1.0f);
-    pbrShader.setInt("irradianceMap", 0);
-    backgroundShader.use();
-    backgroundShader.setInt("envMap", 0);
-
-    // 将源HDR图像转换为立方体贴图纹理
-    // --------------------------
-    unsigned int captureFBO, captureRBO;
-    glGenFramebuffers(1, &captureFBO);
-    glGenRenderbuffers(1, &captureRBO);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
-    glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 512, 512);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, captureRBO);
+    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 
     // 加载HDR图像
     // ---------
@@ -145,6 +109,52 @@ int main() {
     else{
         std::cout << "Failed to load HDR image." << std::endl;
     }
+
+    // lights
+    // ------
+    glm::vec3 lightPositions[] = {
+            glm::vec3(-10.0f, 10.0f, 10.0f),
+            glm::vec3(10.0f, 10.0f, 10.0f),
+            glm::vec3(-10.0f, -10.0f, 10.0f),
+            glm::vec3(10.0f, -10.0f, 10.0f),
+    };
+    glm::vec3 lightColors[] = {
+            glm::vec3(300.0f, 300.0f, 300.0f),
+            glm::vec3(300.0f, 300.0f, 300.0f),
+            glm::vec3(300.0f, 300.0f, 300.0f),
+            glm::vec3(300.0f, 300.0f, 300.0f)};
+    int nrRows = 7;
+    int nrColumns = 7;
+    float spacing = 2.5;
+
+    // build and compile shaders
+    // -------------------------
+    Shader pbrShader("../PBR/shaders/pbr_v.glsl", "../PBR/shaders/pbr_f.glsl");
+    Shader equirectangularToCubemapShader("../PBR/shaders/cubemap_v.glsl", "../PBR/shaders/enquirectangular_to_cubemap_f.glsl");
+    Shader backgroundShader("../PBR/shaders/skybox_v.glsl", "../PBR/shaders/skybox_f.glsl");
+    Shader irradianceShader("../PBR/shaders/cubemap_v.glsl", "../PBR/shaders/irradiance_f.glsl");
+    Shader prefilterShader("../PBR/shaders/cubemap_v.glsl", "../PBR/shaders/prefilter_f.glsl");
+    Shader brdfShader("../PBR/shaders/brdf_v.glsl", "../PBR/shaders/brdf_f.glsl");
+
+    pbrShader.use();
+
+    pbrShader.setInt("irradianceMap", 0);
+    pbrShader.setInt("prefilterMap", 1);
+    pbrShader.setInt("brdfLUT", 2);
+
+    backgroundShader.use();
+    backgroundShader.setInt("envMap", 0);
+
+    // 将源HDR图像转换为立方体贴图纹理
+    // --------------------------
+    unsigned int captureFBO, captureRBO;
+    glGenFramebuffers(1, &captureFBO);
+    glGenRenderbuffers(1, &captureRBO);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 512, 512);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, captureRBO);
 
     // 首先为其六个面预先分配内存
     // ---------------------
@@ -176,16 +186,16 @@ int main() {
             };
     // 将等距柱状 2D 纹理捕捉到立方体贴图的面上
     // ----------------------------------
-    enquirectangularToCubemapShader.use();
-    enquirectangularToCubemapShader.setInt("equirectangularMap", 0);
-    enquirectangularToCubemapShader.setMat4("projection", captureProjection);
+    equirectangularToCubemapShader.use();
+    equirectangularToCubemapShader.setInt("equirectangularMap", 0);
+    equirectangularToCubemapShader.setMat4("projection", captureProjection);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, hdrTexture);
 
     glViewport(0, 0, 512, 512); // don't forget to configure the viewport to the capture dimensions.
     glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
     for(unsigned int i=0;i<6;i++){
-        enquirectangularToCubemapShader.setMat4("view", captureViews[i]);
+        equirectangularToCubemapShader.setMat4("view", captureViews[i]);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X+i, envCubemap, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         renderCube();
@@ -235,6 +245,76 @@ int main() {
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+    // 设置预滤波贴图
+    // -----------
+    unsigned int prefilterMap;
+    glGenTextures(1, &prefilterMap);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
+    for (unsigned int i = 0; i < 6; ++i){
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, 128, 128, 0, GL_RGB, GL_FLOAT, nullptr);
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);   // 因为计划采样 prefilterMap 的 mipmap，所以需要确保将其缩小过滤器设置为 GL_LINEAR_MIPMAP_LINEAR 以启用三线性过滤。
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // generate mipmaps for the cubemap so OpenGL automatically allocates the required memory.
+    glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+
+    prefilterShader.use();
+    prefilterShader.setInt("envMap", 0);
+    prefilterShader.setMat4("projection", captureProjection);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+    unsigned int maxMipLevels = 5;
+    for(unsigned int mip=0;mip<maxMipLevels;mip++){
+        // reisze framebuffer according to mip-level size.
+        unsigned int mipWidth = static_cast<unsigned int>(128 * std::pow(0.5, mip));
+        unsigned int mipHeight = static_cast<unsigned int>(128 * std::pow(0.5, mip));
+        glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, mipWidth, mipHeight);
+        glViewport(0, 0, mipWidth, mipHeight);
+
+        float roughness = (float)mip / (float)(maxMipLevels - 1);
+        prefilterShader.setFloat("roughness", roughness);
+        for(unsigned int i=0;i<6;i++){
+            prefilterShader.setMat4("view", captureViews[i]);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X+i, prefilterMap, mip);
+
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            renderCube();
+        }
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // pbr: generate a 2D LUT from the BRDF equations used.
+    // ----------------------------------------------------
+    unsigned int brdfLUTTexture;
+    glGenTextures(1, &brdfLUTTexture);
+
+    // pre-allocate enough memory for the LUT texture.
+    glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, 512, 512, 0, GL_RG, GL_FLOAT, 0);
+    // be sure to set wrapping mode to GL_CLAMP_TO_EDGE
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    // then re-configure capture framebuffer object and render screen-space quad with BRDF shader.
+    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 512, 512);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, brdfLUTTexture, 0);
+
+    glViewport(0, 0, 512, 512);
+    brdfShader.use();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    renderQuad();
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
     // 在渲染前初始化静态uniform
     // --------------------------------------------------
     glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
@@ -243,7 +323,7 @@ int main() {
     backgroundShader.use();
     backgroundShader.setMat4("projection", projection);
 
-    // then before rendering, configure the viewport to the original framebuffer's screen dimensions
+    // 在渲染前, 将viewport转为原来的参数
     int scrWidth, scrHeight;
     glfwGetFramebufferSize(window, &scrWidth, &scrHeight);
     glViewport(0, 0, scrWidth, scrHeight);
@@ -267,7 +347,7 @@ int main() {
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        UI();
+        panel();
 
         // don't forget to enable shader before setting uniforms
         pbrShader.use();
@@ -276,10 +356,16 @@ int main() {
         glm::mat4 view = camera.GetViewMatrix();
         pbrShader.setMat4("view", view);
         pbrShader.setVec3("camPos", camera.Position);
+        pbrShader.setVec3("albedo", albedo.x, albedo.y, albedo.z);
+        pbrShader.setFloat("ao", ao);
 
         // bind pre-computed IBL data
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
 
         // render rows*column number of spheres with varying metallic/roughness values scaled by rows and columns respectively
         glm::mat4 model = glm::mat4(1.0f);
@@ -322,6 +408,8 @@ int main() {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
         // glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
+        // glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
+        // glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         renderCube();
 
         // enquirectangularToCubemapShader.use();
@@ -467,20 +555,6 @@ unsigned int loadCubemap(vector<std::string> faces) {
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
     return textureID;
-}
-void UI() {
-    // 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
-
-    ImGui::Begin("basic_Editor"); // Create a window called "Hello, world!" and append into it.
-
-    // ImGui::Text("This is some useful text."); // Display some text (you can use a format strings too)
-    ImGui::Text("Camera.Position:");
-    ImGui::SliderFloat("camera.Position.x", &camera.Position.x, -30.0f, 30.0f);
-    ImGui::SliderFloat("camera.Position.y", &camera.Position.y, -30.0f, 30.0f);
-    ImGui::SliderFloat("camera.Position.z", &camera.Position.z, -30.0f, 30.0f);
-
-    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-    ImGui::End();
 }
 // renders (and builds at first invocation) a sphere
 // -------------------------------------------------
@@ -639,4 +713,50 @@ void renderCube()
     glBindVertexArray(cubeVAO);
     glDrawArrays(GL_TRIANGLES, 0, 36);
     glBindVertexArray(0);
+}
+// renderQuad() renders a 1x1 XY quad in NDC
+// -----------------------------------------
+unsigned int quadVAO = 0;
+unsigned int quadVBO;
+void renderQuad() {
+    if (quadVAO == 0) {
+        float quadVertices[] = {
+                // positions        // texture Coords
+                -1.0f, 1.0f, 0.0f, 0.0f, 1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+                1.0f,  1.0f, 0.0f, 1.0f, 1.0f, 1.0f,  -1.0f, 0.0f, 1.0f, 0.0f,
+        };
+        // setup plane VAO
+        glGenVertexArrays(1, &quadVAO);
+        glGenBuffers(1, &quadVBO);
+        glBindVertexArray(quadVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices,
+                     GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float),
+                              (void *)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float),
+                              (void *)(3 * sizeof(float)));
+    }
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindVertexArray(0);
+}
+void panel() {
+    // 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
+
+    ImGui::Begin("basic_Editor"); // Create a window called "Hello, world!" and append into it.
+
+    // ImGui::Text("This is some useful text."); // Display some text (you can use a format strings too)
+    ImGui::Text("Camera.Position:");
+    ImGui::SliderFloat("camera.Position.x", &camera.Position.x, -30.0f, 30.0f);
+    ImGui::SliderFloat("camera.Position.y", &camera.Position.y, -30.0f, 30.0f);
+    ImGui::SliderFloat("camera.Position.z", &camera.Position.z, -30.0f, 30.0f);
+
+    ImGui::ColorEdit3("Albedo", (float *) &albedo);
+    ImGui::SliderFloat("ao", &ao, 0.0f, 2.0f);
+
+    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+    ImGui::End();
 }
