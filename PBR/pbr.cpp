@@ -45,6 +45,20 @@ float lastFrame = 0.0f;
 ImVec4 albedo = ImVec4(0.5f, 0.0f, 0.0f, 1.0f);
 float ao = 1.0f;
 
+// lights
+// ------
+glm::vec3 lightPositions[] = {
+        glm::vec3(-10.0f, 10.0f, 10.0f),
+        glm::vec3(10.0f, 10.0f, 10.0f),
+        glm::vec3(-10.0f, -10.0f, 10.0f),
+        glm::vec3(10.0f, -10.0f, 10.0f),
+};
+ImVec4 lightColor = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+float lightStrength = 300.0f;
+int nrRows = 7;
+int nrColumns = 7;
+float spacing = 2.5;
+
 int main() {
     // glfw: initialize and configure
     // ------------------------------
@@ -110,22 +124,7 @@ int main() {
         std::cout << "Failed to load HDR image." << std::endl;
     }
 
-    // lights
-    // ------
-    glm::vec3 lightPositions[] = {
-            glm::vec3(-10.0f, 10.0f, 10.0f),
-            glm::vec3(10.0f, 10.0f, 10.0f),
-            glm::vec3(-10.0f, -10.0f, 10.0f),
-            glm::vec3(10.0f, -10.0f, 10.0f),
-    };
-    glm::vec3 lightColors[] = {
-            glm::vec3(300.0f, 300.0f, 300.0f),
-            glm::vec3(300.0f, 300.0f, 300.0f),
-            glm::vec3(300.0f, 300.0f, 300.0f),
-            glm::vec3(300.0f, 300.0f, 300.0f)};
-    int nrRows = 7;
-    int nrColumns = 7;
-    float spacing = 2.5;
+
 
     // build and compile shaders
     // -------------------------
@@ -135,6 +134,7 @@ int main() {
     Shader irradianceShader("../PBR/shaders/cubemap_v.glsl", "../PBR/shaders/irradiance_f.glsl");
     Shader prefilterShader("../PBR/shaders/cubemap_v.glsl", "../PBR/shaders/prefilter_f.glsl");
     Shader brdfShader("../PBR/shaders/brdf_v.glsl", "../PBR/shaders/brdf_f.glsl");
+    Shader lightShader("../PBR/shaders/pbr_v.glsl", "../PBR/shaders/light_f.glsl");
 
     pbrShader.use();
 
@@ -320,6 +320,8 @@ int main() {
     glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
     pbrShader.use();
     pbrShader.setMat4("projection", projection);
+    lightShader.use();
+    lightShader.setMat4("projection", projection);
     backgroundShader.use();
     backgroundShader.setMat4("projection", projection);
 
@@ -348,6 +350,13 @@ int main() {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
         panel();
+
+        glm::vec3 lightColors[] = {
+                glm::vec3(lightColor.x*lightStrength, lightColor.y*lightStrength, lightColor.z*lightStrength),
+                glm::vec3(lightColor.x*lightStrength, lightColor.y*lightStrength, lightColor.z*lightStrength),
+                glm::vec3(lightColor.x*lightStrength, lightColor.y*lightStrength, lightColor.z*lightStrength),
+                glm::vec3(lightColor.x*lightStrength, lightColor.y*lightStrength, lightColor.z*lightStrength)};
+
 
         // don't forget to enable shader before setting uniforms
         pbrShader.use();
@@ -389,7 +398,10 @@ int main() {
         // render light source (simply re-render sphere at light positions)
         // this looks a bit off as we use the same shader, but it'll make their positions obvious and
         // keeps the codeprint small.
+        //
         for (unsigned int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); ++i) {
+            pbrShader.use();
+            pbrShader.setMat4("view", view);
             glm::vec3 newPos = lightPositions[i] + glm::vec3(sin(glfwGetTime() * 5.0) * 5.0, 0.0, 0.0);
             newPos = lightPositions[i];
             pbrShader.setVec3("lightPositions[" + std::to_string(i) + "]", newPos);
@@ -399,6 +411,11 @@ int main() {
             model = glm::translate(model, newPos);
             model = glm::scale(model, glm::vec3(0.5f));
             pbrShader.setMat4("model", model);
+
+            lightShader.use();
+            lightShader.setVec3("lightColor", lightColor.x, lightColor.y, lightColor.z);
+            lightShader.setMat4("view", view);
+            lightShader.setMat4("model", model);
             renderSphere();
         }
 
@@ -756,6 +773,14 @@ void panel() {
 
     ImGui::ColorEdit3("Albedo", (float *) &albedo);
     ImGui::SliderFloat("ao", &ao, 0.0f, 2.0f);
+
+    ImGui::SliderFloat("lightPositions[0].x", &lightPositions[0].x, -30.0f, 30.0f);
+    ImGui::SliderFloat("lightPositions[0].y", &lightPositions[0].y, -30.0f, 30.0f);
+    ImGui::SliderFloat("lightPositions[0].z", &lightPositions[0].z, -30.0f, 30.0f);
+
+    ImGui::ColorEdit3("lightColor", (float *) &lightColor);
+    ImGui::SliderFloat("lightStrength", &lightStrength, 0.0f, 500.0f);
+
 
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
     ImGui::End();
