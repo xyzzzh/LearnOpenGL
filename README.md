@@ -5,6 +5,9 @@
 - [ ] 动态环境贴图(Dynamic Environment Mapping)
 - [ ] 在渲染方程中用蒙特卡洛估计(Monte Carlo Estimator)+重要性采样(importance sampling)代替黎曼和(Riemann sum)
 
+最终效果：\
+![PBR_IBL](screenshot/2022-11-28 17.16.51.png)
+
 # note
 
 ## 01_hello_window
@@ -1159,4 +1162,4 @@ PBR渲染管线所需要的每一个表面参数都可以用纹理来定义或�
 - 环境光遮蔽(Ambient Occlusion): 环境光遮蔽(Ambient Occlusion)贴图或者说AO贴图为表面和周围潜在的几何图形指定了一个额外的阴影因子。比如如果我们有一个砖块表面，反照率纹理上的砖块裂缝部分应该没有任何阴影信息。然而AO贴图则会把那些光线较难逃逸出来的暗色边缘指定出来。在光照的结尾阶段引入环境遮蔽可以明显的提升你场景的视觉效果。网格/表面的环境遮蔽贴图要么通过手动生成，要么由3D建模软件自动生成。
 
 
-![](screenshot/2022-11-28 17.16.51.png)
+
