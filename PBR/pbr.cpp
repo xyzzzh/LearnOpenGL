@@ -136,6 +136,7 @@ int main() {
     Shader brdfShader("../PBR/shaders/brdf_v.glsl", "../PBR/shaders/brdf_f.glsl");
     Shader lightShader("../PBR/shaders/pbr_v.glsl", "../PBR/shaders/light_f.glsl");
 
+
     pbrShader.use();
 
     pbrShader.setInt("irradianceMap", 0);
@@ -413,6 +414,7 @@ int main() {
             pbrShader.setMat4("model", model);
 
             lightShader.use();
+
             lightShader.setVec3("lightColor", lightColor.x, lightColor.y, lightColor.z);
             lightShader.setMat4("view", view);
             lightShader.setMat4("model", model);
