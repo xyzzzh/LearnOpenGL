@@ -320,3 +320,19 @@ target_link_libraries(
         imgui
         assimp::assimp
 )
+
+add_executable(21_shadow_mapping 21_shadow_mapping/shadow_mapping.cpp
+        ${include_dir}/glad/src/glad.c
+        ${include_dir}/shader_m.h
+        ${include_dir}/stb_image.h
+        ${include_dir}/camera.h
+        ${include_dir}/mesh.h
+        ${include_dir}/model.h
+        )
+
+target_link_libraries(
+        21_shadow_mapping
+        glfw
+        imgui
+        assimp::assimp
+)
