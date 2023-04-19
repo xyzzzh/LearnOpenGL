@@ -6,7 +6,7 @@
 - [ ] 在渲染方程中用蒙特卡洛估计(Monte Carlo Estimator)+重要性采样(importance sampling)代替黎曼和(Riemann sum)
 
 最终效果：\
-![PBR_IBL](screenshot/2022-11-28 17.16.51.png)
+<div align="center"><img src="screenshot/2022-11-28 17.16.51.png"></div>
 
 # note
 
